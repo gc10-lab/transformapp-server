@@ -5,6 +5,13 @@ import rateLimit from "express-rate-limit";
 import OpenAI from "openai";
 
 const app = express();
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "X-Transform-Token"]
+}));
+
+app.options("*", cors());
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use("/api/", rateLimit({ windowMs: 60_000, max: 8 }));
