@@ -33,8 +33,13 @@ app.post("/api/generate-image", requireToken, upload.single("image"), async (req
 
     const prompt = req.body.prompt || "Stylize the image tastefully.";
 
-    // Convert multer Buffer -> Uploadable File for OpenAI SDK
-    const imageFile = await toFile(req.file.buffer, req.file.originalname || "input.jpg");
+    const mime = req.file.mimetype || "image/jpeg";
+    const name =
+      (mime === "image/png") ? "input.png" :
+      (mime === "image/webp") ? "input.webp" :
+      "input.jpg";
+
+    const imageFile = await toFile(req.file.buffer, name, { type: mime });
 
     const result = await client.images.edit({
       model: "gpt-image-1",
@@ -51,7 +56,6 @@ app.post("/api/generate-image", requireToken, upload.single("image"), async (req
     res.status(500).send(err?.message || "Unknown error");
   }
 });
-
 app.listen(process.env.PORT || 3000, () => {
   console.log("Server running");
 });
