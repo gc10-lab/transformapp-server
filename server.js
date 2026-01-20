@@ -3,15 +3,17 @@ import express from "express";
 import multer from "multer";
 import rateLimit from "express-rate-limit";
 import OpenAI from "openai";
+import { toFile } from "openai/uploads";
 
 const app = express();
+
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "X-Transform-Token"]
 }));
-
 app.options("*", cors());
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use("/api/", rateLimit({ windowMs: 60_000, max: 8 }));
@@ -25,22 +27,25 @@ function requireToken(req, res, next) {
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-app.use(express.static("."));
-
 app.post("/api/generate-image", requireToken, upload.single("image"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).send("Missing image");
+
     const prompt = req.body.prompt || "Stylize the image tastefully.";
+
+    // Convert multer Buffer -> Uploadable File for OpenAI SDK
+    const imageFile = await toFile(req.file.buffer, req.file.originalname || "input.jpg");
 
     const result = await client.images.edit({
       model: "gpt-image-1",
-      image: req.file.buffer,
+      image: imageFile,
       prompt,
-      size: "1024x1024",
+      size: "1024x1024"
     });
 
     const b64 = result.data?.[0]?.b64_json;
     if (!b64) return res.status(500).send("No image returned");
+
     res.json({ b64 });
   } catch (err) {
     res.status(500).send(err?.message || "Unknown error");
